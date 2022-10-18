@@ -110,6 +110,7 @@ def gather_pairs_train(poses, used_pairs, is_backward, initial_pose_dist_min, in
 
 
 def crawl_subprocess_short(scene, dataset_path, count, progress):
+    # yang: get the scene and pose
     scene_path = Path(dataset_path) / scene
     poses = np.reshape(np.loadtxt(scene_path / "poses.txt"), newshape=(-1, 4, 4))
 
@@ -128,6 +129,7 @@ def crawl_subprocess_short(scene, dataset_path, count, progress):
                       'indices': [i, j]}
             samples.append(sample)
 
+    # yang: used for tracking multiprocess subprocesses. progress is a manager.value() object
     progress.value += 1
     print(progress.value, "/", count, end='\r')
 
@@ -224,6 +226,7 @@ def crawl_subprocess_long(scene, dataset_path, count, progress, subsequence_leng
 
 
 def crawl(dataset_path, scenes, subsequence_length, num_workers=1):
+    # yang: parallel adding scene samples to the samples. 
     pool = Pool(num_workers)
     manager = Manager()
 
@@ -232,6 +235,7 @@ def crawl(dataset_path, scenes, subsequence_length, num_workers=1):
 
     samples = []
 
+    # yang: given the subsequence length, use different crawl_subprocess function. Persumably for better performance when subseqence = 2.
     if subsequence_length == 2:
         for scene_samples in pool.imap_unordered(partial(crawl_subprocess_short,
                                                          dataset_path=dataset_path,
@@ -270,10 +274,14 @@ def load_depth(path, scaling=1000.0):
 
 class PreprocessImage:
     def __init__(self, K, old_width, old_height, new_width, new_height, distortion_crop=0, perform_crop=True):
+
+        # yang: Camera intrinsic parameters need to be updated when preprocessing
+        # camera intrinsic parameters.
         self.fx = K[0, 0]
         self.fy = K[1, 1]
         self.cx = K[0, 2]
         self.cy = K[1, 2]
+        # yang: adjust the image width and height, using crop
         self.new_width = new_width
         self.new_height = new_height
         self.perform_crop = perform_crop
@@ -281,6 +289,7 @@ class PreprocessImage:
         original_height = np.copy(old_height)
         original_width = np.copy(old_width)
 
+        # yang: implement crop logic, scale or crop the image the target width and height
         if self.perform_crop:
             old_height -= 2 * distortion_crop
             old_width -= 2 * distortion_crop
@@ -307,6 +316,7 @@ class PreprocessImage:
             factor_x = float(new_width) / float(intermediate_width)
             factor_y = float(new_height) / float(intermediate_height)
 
+            # yang: how to adjust intrinsic param when scaling
             self.fx *= factor_x
             self.fy *= factor_y
             self.cx *= factor_x
@@ -490,6 +500,7 @@ class MVSDataset(Dataset):
 
         K = torch.from_numpy(K.astype(np.float32))
 
+        # question from yang: what is the dimension of output? How is it connected with the network?
         return output_images, output_depths, output_poses, K
 
     def __len__(self):
