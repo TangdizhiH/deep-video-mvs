@@ -37,6 +37,7 @@ def up_conv_layer(input_channels, output_channels, kernel_size):
 
 
 def conv_layer(input_channels, output_channels, kernel_size, stride, apply_bn_relu):
+    # yang: wrapper for unified convolutiona layer with or without batchnorm and relu. You can learn this to write some standardized layers for different purposes.
     if apply_bn_relu:
         return torch.nn.Sequential(
             torch.nn.Conv2d(

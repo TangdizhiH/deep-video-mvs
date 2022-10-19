@@ -56,7 +56,8 @@ class UpconvolutionLayer(torch.nn.Module):
                                apply_bn_relu=True)
 
     def forward(self, x):
-        x = torch.nn.functional.interpolate(input=x, scale_factor=2, mode='bilinear', align_corners=True)
+        # yang: mode is determined by the dimension of the input, seems to be 4-D CHECK
+        x = torch.nn.functional.interpolate(input=x, scale_factor=2, mode='bilinear', align_corners=True) # yang: align corner ensures boundary correct
         x = self.conv(x)
         return x
 
@@ -231,6 +232,7 @@ class CostVolumeDecoder(torch.nn.Module):
         self.inverse_depth_base = 1 / Config.train_max_depth
         self.inverse_depth_multiplier = 1 / Config.train_min_depth - 1 / Config.train_max_depth
 
+        # question from yang: meaning of plug_one for Decoder Block? Ans: if there should extend the channel.
         self.decoder_block1 = DecoderBlock(input_channels=hyper_channels * 16,
                                            output_channels=hyper_channels * 8,
                                            kernel_size=3,

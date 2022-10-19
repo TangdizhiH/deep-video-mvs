@@ -34,6 +34,7 @@ class StandardLayer(torch.nn.Module):
 class DownconvolutionLayer(torch.nn.Module):
     def __init__(self, input_channels, output_channels, kernel_size):
         super(DownconvolutionLayer, self).__init__()
+        # yang: downconv only to have stride to 2, really effective
         self.down_conv = conv_layer(input_channels=input_channels,
                                     output_channels=output_channels,
                                     stride=2,
@@ -55,6 +56,7 @@ class UpconvolutionLayer(torch.nn.Module):
                                apply_bn_relu=True)
 
     def forward(self, inp):
+        # yang: up conv use the interpolation
         x = torch.nn.functional.interpolate(input=inp, scale_factor=2, mode='bilinear', align_corners=True)
         x = self.conv(x)
         return x
