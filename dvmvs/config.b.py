@@ -5,7 +5,6 @@ class Config:
     # training settings
     train_image_width = 256
     train_image_height = 256
-    # question from yang: in what unit is the depth? ans: depth value in millimeters
     train_min_depth = 0.25
     train_max_depth = 20.0
     train_n_depth_levels = 64
@@ -34,9 +33,8 @@ class Config:
     test_optimal_R_measure = 0.0
 
     # SET THESE: TRAINING FOLDER LOCATIONS
-    # TODO add new dataset here to test train
-    dataset = "/home/yang/Coding/deep-video-mvs/sample-data/hololens-dataset/"
-    train_run_directory = "/home/yang/Workspace/git/deep-video-mvs/training-runs"
+    dataset = "/media/ardaduz/T5/train"
+    train_run_directory = "/home/ardaduz/Workspace/git/deep-video-mvs/training-runs"
 
     # SET THESE: TESTING FOLDER LOCATIONS
     # for run-testing-online.py (evaluate a single scene, WITHOUT keyframe indices, online selection)
@@ -48,6 +46,6 @@ class Config:
     # below give a dataset name like tumrgbd, i.e. folder or None
     # if None, all datasets will be evaluated given that
     # their keyframe index files are in Config.test_offline_data_path/indices folder
-    test_dawtaset_name = "hololens-dataset"  # or None
+    test_dataset_name = "hololens-dataset"  # or None
 
-    test_result_folder = "/home/yang/Workspace/result/"
+    test_result_folder = "/media/ardaduz/T5/results/"

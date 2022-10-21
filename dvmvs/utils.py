@@ -43,6 +43,8 @@ def get_warp_grid_for_cost_volume_calculation(width, height, device):
 
 
 def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K, warp_grid, min_depth, max_depth, n_depth_levels, device, dot_product):
+
+    # yang: we assume the intrinsic matrix is constant
     batch_size, channels, height, width = image1.size()
     warp_grid = torch.cat(batch_size * [warp_grid.unsqueeze(dim=0)])
 

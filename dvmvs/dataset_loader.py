@@ -357,6 +357,7 @@ class PreprocessImage:
 
 
 class MVSDataset(Dataset):
+    #TODO read  this to know about the dataset implementation. There are some confusion about the dataset, there might be a chance that I will have to adapt this model that can 
     def __init__(self, root, seed, split, subsequence_length, scale_rgb, mean_rgb, std_rgb, geometric_scale_augmentation=False):
         np.random.seed(seed)
         random.seed(seed)

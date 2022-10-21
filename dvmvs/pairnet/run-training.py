@@ -53,6 +53,7 @@ def main():
     os.mkdir(run_directory)
 
     # zip every code file
+    # yang: save all the code from that runing time. for better replication
     zip_code(run_directory)
 
     summary_writer = SummaryWriter(run_directory)

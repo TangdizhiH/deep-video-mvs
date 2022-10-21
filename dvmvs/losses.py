@@ -40,6 +40,7 @@ def update_losses(predictions, weights, groundtruth, is_training, l1_meter, hube
             elif loss_type == "Huber":
                 optimizer_loss = optimizer_loss + weights[j] * (sample_huber_loss / sample_valid_count)
     else:
+        # yang: if not training, then only prediect for only one prediction
         sample_l1_loss, sample_huber_loss, sample_l1_inv_loss, sample_l1_rel_loss, sample_valid_count = calculate_loss(groundtruth=groundtruth,
                                                                                                                        prediction=predictions[-1])
     l1_meter.update(sample_l1_loss.item(), sample_valid_count)
@@ -51,7 +52,9 @@ def update_losses(predictions, weights, groundtruth, is_training, l1_meter, hube
 
 
 def calculate_loss(groundtruth, prediction):
+    # yang: ground truth has not been donwsampled
     batch, height_original, width_original = groundtruth.size()
+
     groundtruth = groundtruth.view(batch, 1, height_original, width_original)
 
     batch, height_scaled, width_scaled = prediction.size()

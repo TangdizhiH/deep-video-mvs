@@ -136,6 +136,7 @@ def main():
               forward_pass_function=forward_pass)
 
     # TRAIN MY PARTS
+
     parameters = itertools.chain(feature_shrinker.parameters(),
                                  cost_volume_encoder.parameters(),
                                  lstm_fusion.parameters(),
