@@ -35,15 +35,15 @@ class Config:
 
     # SET THESE: TRAINING FOLDER LOCATIONS
     # TODO add new dataset here to test train
-    dataset = "/home/yang/Coding/deep-video-mvs/sample-data/hololens-dataset/"
-    train_run_directory = "/home/yang/Workspace/git/deep-video-mvs/training-runs"
+    dataset = "/home/yang/Workspace/dataset/"
+    train_run_directory = "/home/yang/Workspace/deep-video-mvs/training-runs"
 
     # SET THESE: TESTING FOLDER LOCATIONS
     # for run-testing-online.py (evaluate a single scene, WITHOUT keyframe indices, online selection)
-    test_online_scene_path = "/home/ardaduz/Workspace/git/deep-video-mvs/sample-data/hololens-dataset/000"
+    test_online_scene_path = "/home/yang/Coding/deep-video-mvs/sample-data/own-dataset/5a3ca9cb270f0e3f14d0eddb"
 
     # for run-testing.py (evaluate all available scenes, WITH pre-calculated keyframe indices)
-    test_offline_data_path = "/home/ardaduz/Workspace/git/deep-video-mvs/sample-data"
+    test_offline_data_path = "/home/yang/Coding/deep-video-mvs/sample-data"
 
     # below give a dataset name like tumrgbd, i.e. folder or None
     # if None, all datasets will be evaluated given that

@@ -10,8 +10,11 @@ from dvmvs.keyframe_buffer import KeyframeBuffer
 from dvmvs.pairnet.model import FeatureExtractor, FeatureShrinker, CostVolumeEncoder, CostVolumeDecoder
 from dvmvs.utils import cost_volume_fusion, save_results, visualize_predictions, InferenceTimer, get_warp_grid_for_cost_volume_calculation
 
+print(f"{Config.test_online_scene_path}")
+
 
 def predict():
+    # yang: add name for each experiments
     dataset_name = Config.test_online_scene_path.split("/")[-2]
     system_name = "keyframe_{}_{}_{}_{}_dvmvs_fusionnet_online".format(dataset_name,
                                                                        Config.test_image_width,
@@ -22,23 +25,30 @@ def predict():
     print("# of Measurement Frames:", Config.test_n_measurement_frames)
 
     device = torch.device("cuda")
+
+    # yang: add four components for the network
     feature_extractor = FeatureExtractor()
     feature_shrinker = FeatureShrinker()
     cost_volume_encoder = CostVolumeEncoder()
     cost_volume_decoder = CostVolumeDecoder()
 
+    # yang: move networks to cuda
     feature_extractor = feature_extractor.to(device)
     feature_shrinker = feature_shrinker.to(device)
     cost_volume_encoder = cost_volume_encoder.to(device)
     cost_volume_decoder = cost_volume_decoder.to(device)
 
+    # yang: compress them to a list -> model
     model = [feature_extractor, feature_shrinker, cost_volume_encoder, cost_volume_decoder]
 
     for i in range(len(model)):
+        print()
+        # yang: try to load the weights that has been prepared
         try:
             checkpoint = sorted(Path("weights").files())[i]
             weights = torch.load(checkpoint)
             model[i].load_state_dict(weights)
+            # yang: set to evaluation mode
             model[i].eval()
             print("Loaded weights for", checkpoint)
         except Exception as e:
@@ -46,6 +56,7 @@ def predict():
             print("Could not find the checkpoint for module", i)
             exit(1)
 
+    # yang: give name to these components, easy for latter calls
     feature_extractor = model[0]
     feature_shrinker = model[1]
     cost_volume_encoder = model[2]
@@ -68,6 +79,7 @@ def predict():
     scene = scene_folder.split("/")[-1]
     print("Predicting for scene:", scene)
 
+    # yang: save key frame for the prediction?
     keyframe_buffer = KeyframeBuffer(buffer_size=Config.test_keyframe_buffer_size,
                                      keyframe_pose_distance=Config.test_keyframe_pose_distance,
                                      optimal_t_score=Config.test_optimal_t_measure,
@@ -87,6 +99,7 @@ def predict():
         for i in tqdm(range(0, len(poses))):
             reference_pose = poses[i]
             reference_image = load_image(image_filenames[i])
+            # question from yang:  why dived by 1000? Conversion between unit?
             reference_depth = cv2.imread(depth_filenames[i], -1).astype(float) / 1000.0
 
             # POLL THE KEYFRAME BUFFER
@@ -94,6 +107,7 @@ def predict():
             if response != 1:
                 continue
 
+            # yang: arbitrary shapes are accepted. This is an interesting approach. Setup the method to preprocess then pass the image to each method. Advantage: save the space
             preprocessor = PreprocessImage(K=K,
                                            old_width=reference_image.shape[1],
                                            old_height=reference_image.shape[0],
@@ -107,12 +121,16 @@ def predict():
                                                      mean_rgb=mean_rgb,
                                                      std_rgb=std_rgb)
             reference_depth = preprocessor.apply_depth(reference_depth)
+            
+            # yang: to the new torch
             reference_image_torch = torch.from_numpy(np.transpose(reference_image, (2, 0, 1))).float().to(device).unsqueeze(0)
             reference_pose_torch = torch.from_numpy(reference_pose).float().to(device).unsqueeze(0)
 
+            # question from yang: what is the meaning of full K and half K
             full_K_torch = torch.from_numpy(preprocessor.get_updated_intrinsics()).float().to(device).unsqueeze(0)
 
             half_K_torch = full_K_torch.clone().cuda()
+
             half_K_torch[:, 0:2, :] = half_K_torch[:, 0:2, :] / 2.0
 
             measurement_poses_torch = []

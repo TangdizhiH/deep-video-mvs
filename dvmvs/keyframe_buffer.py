@@ -1,4 +1,5 @@
 from collections import deque
+import queue
 
 import numpy as np
 
@@ -6,15 +7,20 @@ from dvmvs.utils import is_pose_available, pose_distance
 
 
 class KeyframeBuffer:
+    # yang: buffer for the key frames, easy to understand
     def __init__(self, buffer_size, keyframe_pose_distance, optimal_t_score, optimal_R_score, store_return_indices):
+        # yang: bidirectional pop and append on list object
         self.buffer = deque([], maxlen=buffer_size)
+        # question from yang:  why do we need distance from keyframes?
         self.keyframe_pose_distance = keyframe_pose_distance
+        # yang: optimal? how?
         self.optimal_t_score = optimal_t_score
         self.optimal_R_score = optimal_R_score
         self.__tracking_lost_counter = 0
         self.__store_return_indices = store_return_indices  # mostly required for simulation of the frame selection
 
     def calculate_penalty(self, t_score, R_score):
+        # question from yang: penalty degree?
         degree = 2.0
         R_penalty = np.abs(R_score - self.optimal_R_score) ** degree
         t_diff = t_score - self.optimal_t_score
