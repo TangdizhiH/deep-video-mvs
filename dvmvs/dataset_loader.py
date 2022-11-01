@@ -7,7 +7,7 @@ from multiprocessing.pool import Pool
 import cv2
 import numpy as np
 import torch
-from kornia import adjust_brightness, adjust_gamma, adjust_contrast
+from kornia.enhance import adjust_brightness, adjust_gamma, adjust_contrast
 from path import Path
 from torch.utils.data import Dataset, DataLoader
 
@@ -334,6 +334,7 @@ class PreprocessImage:
 
     def apply_depth(self, depth):
         raw_height, raw_width = depth.shape
+        # yang: crop
         cropped_depth = depth[self.crop_y:raw_height - self.crop_y, self.crop_x:raw_width - self.crop_x]
         resized_cropped_depth = cv2.resize(cropped_depth, (self.new_width, self.new_height), interpolation=cv2.INTER_NEAREST)
         return resized_cropped_depth

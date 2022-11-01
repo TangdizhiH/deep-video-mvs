@@ -232,4 +232,4 @@ def predict(evaluate):
 
 
 if __name__ == '__main__':
-    predict(evaluate=True)
+    predict(evaluate=False)

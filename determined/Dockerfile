@@ -6,14 +6,14 @@ RUN eval "$(conda shell.bash hook)" && \
     conda activate base && \
     conda install -y -c conda-forge -c pytorch -c fvcore -c pytorch3d \
         python=3.8 \
-        pytorch=1.5.1 \
-        torchvision=0.6.1 \
-        cudatoolkit=10.2 \
+        pytorch \
+        torchvision \
+        cudatoolkit \
         opencv=4.4.0 \
         tqdm=4.50.2 \
         scipy=1.5.2 \
         fvcore=0.1.2 \
-        pytorch3d=0.2.5 && \
+        pytorch3d && \
     pip install \
         pytools==2020.4 \
         kornia==0.3.2 \
