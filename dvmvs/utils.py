@@ -121,9 +121,9 @@ def get_non_differentiable_rectangle_depth_estimation(reference_pose_torch,
     half_height = int(original_height / 2)
 
     trans = torch.bmm(torch.inverse(reference_pose_torch), measurement_pose_torch)
-    points_3d_src = kornia.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
+    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
     points_3d_src = points_3d_src.permute(0, 2, 3, 1)
-    points_3d_dst = kornia.transform_points(trans[:, None], points_3d_src)
+    points_3d_dst = kornia.geometry.linalg.transform_points(trans[:, None], points_3d_src)
 
     points_3d_dst = points_3d_dst.view(batch_size, -1, 3)
 
@@ -135,7 +135,7 @@ def get_non_differentiable_rectangle_depth_estimation(reference_pose_torch,
     sorting_indices_for_points = torch.stack([sorting_indices] * 3, dim=-1)
     points_3d_dst = torch.gather(points_3d_dst, dim=1, index=sorting_indices_for_points)
 
-    projections = torch.round(kornia.project_points(points_3d_dst, half_K_torch.unsqueeze(1))).long()
+    projections = torch.round(kornia.geometry.camera.perspective.project_points(points_3d_dst, half_K_torch.unsqueeze(1))).long()
     is_valid_below = (projections[:, :, 0] >= 0) & (projections[:, :, 1] >= 0)
     is_valid_above = (projections[:, :, 0] < half_width) & (projections[:, :, 1] < half_height)
     is_valid = is_valid_below & is_valid_above
@@ -172,9 +172,9 @@ def get_differentiable_square_depth_estimation(reference_pose_torch,
     R_render[:, 1, 1] *= -1
 
     trans = torch.bmm(torch.inverse(reference_pose_torch), measurement_pose_torch)
-    points_3d_src = kornia.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
+    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
     points_3d_src = points_3d_src.permute(0, 2, 3, 1)
-    points_3d_dst = kornia.transform_points(trans[:, None], points_3d_src).view(batch_size, -1, 3)
+    points_3d_dst = kornia.geometry.linalg.transform_points(trans[:, None], points_3d_src).view(batch_size, -1, 3)
     point_cloud_p3d = structures.Pointclouds(points=points_3d_dst, features=None)
 
     width_normalizer = original_image_size / 4.0
@@ -240,22 +240,22 @@ def warp_frame_depth(
         raise ValueError(f"Input camera_matrix must have a shape (B, 3, 3). "
                          f"Got: {camera_matrix.shape}.")
     # unproject source points to camera frame
-    points_3d_dst: torch.Tensor = kornia.depth_to_3d(depth_dst, camera_matrix, normalize_points)  # Bx3xHxW
+    points_3d_dst: torch.Tensor = kornia.geometry.depth.depth_to_3d(depth_dst, camera_matrix, normalize_points)  # Bx3xHxW
 
     # transform points from source to destination
     points_3d_dst = points_3d_dst.permute(0, 2, 3, 1)  # BxHxWx3
 
     # apply transformation to the 3d points
-    points_3d_src = kornia.transform_points(src_trans_dst[:, None], points_3d_dst)  # BxHxWx3
+    points_3d_src = kornia.geometry.linalg.transform_points(src_trans_dst[:, None], points_3d_dst)  # BxHxWx3
     points_3d_src[:, :, :, 2] = torch.relu(points_3d_src[:, :, :, 2])
 
     # project back to pixels
     camera_matrix_tmp: torch.Tensor = camera_matrix[:, None, None]  # Bx1x1xHxW
-    points_2d_src: torch.Tensor = kornia.project_points(points_3d_src, camera_matrix_tmp)  # BxHxWx2
+    points_2d_src: torch.Tensor = kornia.geometry.camera.perspective.project_points(points_3d_src, camera_matrix_tmp)  # BxHxWx2
 
     # normalize points between [-1 / 1]
     height, width = depth_dst.shape[-2:]
-    points_2d_src_norm: torch.Tensor = kornia.normalize_pixel_coordinates(points_2d_src, height, width)  # BxHxWx2
+    points_2d_src_norm: torch.Tensor = kornia.geometry.conversions.normalize_pixel_coordinates(points_2d_src, height, width)  # BxHxWx2
 
     return torch.nn.functional.grid_sample(image_src, points_2d_src_norm, align_corners=True, mode=sampling_mode)
 
