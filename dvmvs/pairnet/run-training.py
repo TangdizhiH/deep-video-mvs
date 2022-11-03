@@ -18,7 +18,7 @@ from dvmvs.utils import zip_code, print_number_of_trainable_parameters, calculat
 class TrainingHyperparameters:
     Config.train_subsequence_length = 2
     Config.train_predict_two_way = True
-    batch_size = 14
+    batch_size = 2
     learning_rate = 1e-4
     momentum = 0.9
     beta = 0.999

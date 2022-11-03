@@ -89,7 +89,7 @@ def predict():
     K = np.loadtxt(scene_folder / 'K.txt').astype(np.float32)
     poses = np.fromfile(scene_folder / "poses.txt", dtype=float, sep="\n ").reshape((-1, 4, 4))
     image_filenames = sorted((scene_folder / 'images').files("*.png"))
-    depth_filenames = sorted((scene_folder / 'depth').files("*.png"))
+    # depth_filenames = sorted((scene_folder / 'depth').files("*.png"))
 
     inference_timer = InferenceTimer()
 
@@ -100,7 +100,7 @@ def predict():
             reference_pose = poses[i]
             reference_image = load_image(image_filenames[i])
             # question from yang:  why dived by 1000? Conversion between unit?
-            reference_depth = cv2.imread(depth_filenames[i], -1).astype(float) / 1000.0
+            # reference_depth = cv2.imread(depth_filenames[i], -1).astype(float) / 1000.0
 
             # POLL THE KEYFRAME BUFFER
             response = keyframe_buffer.try_new_keyframe(reference_pose, reference_image)
@@ -120,7 +120,8 @@ def predict():
                                                      scale_rgb=scale_rgb,
                                                      mean_rgb=mean_rgb,
                                                      std_rgb=std_rgb)
-            reference_depth = preprocessor.apply_depth(reference_depth)
+            # reference_depth = preprocessor.apply_depth(reference_depth)
+            reference_depth = None
             
             # yang: to the new torch
             reference_image_torch = torch.from_numpy(np.transpose(reference_image, (2, 0, 1))).float().to(device).unsqueeze(0)
@@ -179,7 +180,7 @@ def predict():
             inference_timer.record_end_time_and_elapsed_time()
 
             prediction = prediction.cpu().numpy().squeeze()
-            reference_depths.append(reference_depth)
+            # reference_depths.append(reference_depth)
             predictions.append(prediction)
 
             if Config.test_visualize:

@@ -440,15 +440,6 @@ def visualize_predictions(numpy_reference_image,
 
     # concatenate three images for better visualizations.
 
-    reference_image = cv2.cvtColor(numpy_reference_image, cv2.COLOR_RGB2BGR)
-
-    measurement_image = cv2.cvtColor(numpy_measurement_image,
-                                     cv2.COLOR_RGB2BGR)
-
-    depth_map = cv2.cvtColor((depth_multiplier_for_visualization *
-                              numpy_predicted_depth).astype(np.uint16),
-                             cv2.COLOR_GRAY2RGB)
-
     win1 = "reference_frame"
     win2 = "measurement_frame"
     win3 = "depthmap"
