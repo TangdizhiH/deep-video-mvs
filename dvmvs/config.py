@@ -45,7 +45,10 @@ class Config:
     # test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/5a3ca9cb270f0e3f14d0eddb"
     # test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/5a3cb4e4270f0e3f14d12f43"
     # test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/5a3f4aba5889373fbbc5d3b5"
-    test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/5a4a38dad38c8a075495b5d2"
+    # test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/5a4a38dad38c8a075495b5d2"
+
+    # test data from ARKitScene
+    test_online_scene_path = "/home/yang/Workspace/git/deep-video-mvs/sample-data/own-dataset/40753679_frames"
 
     # for run-testing.py (evaluate all available scenes, WITH pre-calculated keyframe indices)
     test_offline_data_path = "/home/yang/Coding/deep-video-mvs/sample-data"

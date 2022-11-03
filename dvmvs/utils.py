@@ -27,7 +27,7 @@ def pose_distance(reference_pose, measurement_pose):
     t = rel_pose[:3, 3]
     R_measure = np.sqrt(2 * (1 - min(3.0, np.matrix.trace(R)) / 3))
     t_measure = np.linalg.norm(t)
-    combined_measure = np.sqrt(t_measure ** 2 + R_measure ** 2)
+    combined_measure = np.sqrt(t_measure**2 + R_measure**2)
     return combined_measure, R_measure, t_measure
 
 
@@ -42,13 +42,16 @@ def get_warp_grid_for_cost_volume_calculation(width, height, device):
     return warp_grid
 
 
-def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K, warp_grid, min_depth, max_depth, n_depth_levels, device, dot_product):
+def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K,
+                                     warp_grid, min_depth, max_depth,
+                                     n_depth_levels, device, dot_product):
 
     # yang: we assume the intrinsic matrix is constant
     batch_size, channels, height, width = image1.size()
     warp_grid = torch.cat(batch_size * [warp_grid.unsqueeze(dim=0)])
 
-    cost_volume = torch.empty(size=(batch_size, n_depth_levels, height, width), dtype=torch.float32).to(device)
+    cost_volume = torch.empty(size=(batch_size, n_depth_levels, height, width),
+                              dtype=torch.float32).to(device)
 
     extrinsic2 = torch.inverse(pose2).bmm(pose1)
     R = extrinsic2[:, 0:3, 0:3]
@@ -59,7 +62,8 @@ def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K, warp_grid,
     K_R_Kinv_UV = K_R_Kinv.bmm(warp_grid)
 
     inverse_depth_base = 1.0 / max_depth
-    inverse_depth_step = (1.0 / min_depth - 1.0 / max_depth) / (n_depth_levels - 1)
+    inverse_depth_step = (1.0 / min_depth -
+                          1.0 / max_depth) / (n_depth_levels - 1)
 
     width_normalizer = width / 2.0
     height_normalizer = height / 2.0
@@ -71,8 +75,10 @@ def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K, warp_grid,
         warping = warping.transpose(dim0=1, dim1=2)
         warping = warping[:, :, 0:2] / (warping[:, :, 2].unsqueeze(-1) + 1e-8)
         warping = warping.view(batch_size, height, width, 2)
-        warping[:, :, :, 0] = (warping[:, :, :, 0] - width_normalizer) / width_normalizer
-        warping[:, :, :, 1] = (warping[:, :, :, 1] - height_normalizer) / height_normalizer
+        warping[:, :, :, 0] = (warping[:, :, :, 0] -
+                               width_normalizer) / width_normalizer
+        warping[:, :, :, 1] = (warping[:, :, :, 1] -
+                               height_normalizer) / height_normalizer
 
         warped_image2 = torch.nn.functional.grid_sample(input=image2,
                                                         grid=warping,
@@ -81,49 +87,56 @@ def calculate_cost_volume_by_warping(image1, image2, pose1, pose2, K, warp_grid,
                                                         align_corners=True)
 
         if dot_product:
-            cost_volume[:, depth_i, :, :] = torch.sum(image1 * warped_image2, dim=1) / channels
+            cost_volume[:, depth_i, :, :] = torch.sum(image1 * warped_image2,
+                                                      dim=1) / channels
         else:
-            cost_volume[:, depth_i, :, :] = torch.sum(torch.abs(image1 - warped_image2), dim=1)
+            cost_volume[:, depth_i, :, :] = torch.sum(torch.abs(image1 -
+                                                                warped_image2),
+                                                      dim=1)
 
     return cost_volume
 
 
-def cost_volume_fusion(image1, image2s, pose1, pose2s, K, warp_grid, min_depth, max_depth, n_depth_levels, device, dot_product):
+def cost_volume_fusion(image1, image2s, pose1, pose2s, K, warp_grid, min_depth,
+                       max_depth, n_depth_levels, device, dot_product):
     batch_size, channels, height, width = image1.size()
-    fused_cost_volume = torch.zeros(size=(batch_size, n_depth_levels, height, width), dtype=torch.float32).to(device)
+    fused_cost_volume = torch.zeros(size=(batch_size, n_depth_levels, height,
+                                          width),
+                                    dtype=torch.float32).to(device)
 
     for pose2, image2 in zip(pose2s, image2s):
-        cost_volume = calculate_cost_volume_by_warping(image1=image1,
-                                                       image2=image2,
-                                                       pose1=pose1,
-                                                       pose2=pose2,
-                                                       K=K,
-                                                       warp_grid=warp_grid,
-                                                       min_depth=min_depth,
-                                                       max_depth=max_depth,
-                                                       n_depth_levels=n_depth_levels,
-                                                       device=device,
-                                                       dot_product=dot_product)
+        cost_volume = calculate_cost_volume_by_warping(
+            image1=image1,
+            image2=image2,
+            pose1=pose1,
+            pose2=pose2,
+            K=K,
+            warp_grid=warp_grid,
+            min_depth=min_depth,
+            max_depth=max_depth,
+            n_depth_levels=n_depth_levels,
+            device=device,
+            dot_product=dot_product)
         fused_cost_volume += cost_volume
     fused_cost_volume /= len(pose2s)
     return fused_cost_volume
 
 
-def get_non_differentiable_rectangle_depth_estimation(reference_pose_torch,
-                                                      measurement_pose_torch,
-                                                      previous_depth_torch,
-                                                      full_K_torch,
-                                                      half_K_torch,
-                                                      original_width,
-                                                      original_height):
+def get_non_differentiable_rectangle_depth_estimation(
+        reference_pose_torch, measurement_pose_torch, previous_depth_torch,
+        full_K_torch, half_K_torch, original_width, original_height):
     batch_size, _, _ = reference_pose_torch.shape
     half_width = int(original_width / 2)
     half_height = int(original_height / 2)
 
-    trans = torch.bmm(torch.inverse(reference_pose_torch), measurement_pose_torch)
-    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
+    trans = torch.bmm(torch.inverse(reference_pose_torch),
+                      measurement_pose_torch)
+    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch,
+                                                      full_K_torch,
+                                                      normalize_points=False)
     points_3d_src = points_3d_src.permute(0, 2, 3, 1)
-    points_3d_dst = kornia.geometry.linalg.transform_points(trans[:, None], points_3d_src)
+    points_3d_dst = kornia.geometry.linalg.transform_points(
+        trans[:, None], points_3d_src)
 
     points_3d_dst = points_3d_dst.view(batch_size, -1, 3)
 
@@ -133,36 +146,45 @@ def get_non_differentiable_rectangle_depth_estimation(reference_pose_torch,
     z_values = torch.gather(z_values, dim=1, index=sorting_indices)
 
     sorting_indices_for_points = torch.stack([sorting_indices] * 3, dim=-1)
-    points_3d_dst = torch.gather(points_3d_dst, dim=1, index=sorting_indices_for_points)
+    points_3d_dst = torch.gather(points_3d_dst,
+                                 dim=1,
+                                 index=sorting_indices_for_points)
 
-    projections = torch.round(kornia.geometry.camera.perspective.project_points(points_3d_dst, half_K_torch.unsqueeze(1))).long()
+    projections = torch.round(
+        kornia.geometry.camera.perspective.project_points(
+            points_3d_dst, half_K_torch.unsqueeze(1))).long()
     is_valid_below = (projections[:, :, 0] >= 0) & (projections[:, :, 1] >= 0)
-    is_valid_above = (projections[:, :, 0] < half_width) & (projections[:, :, 1] < half_height)
+    is_valid_above = (projections[:, :, 0] <
+                      half_width) & (projections[:, :, 1] < half_height)
     is_valid = is_valid_below & is_valid_above
 
-    depth_hypothesis = torch.zeros(size=(batch_size, 1, half_height, half_width)).cuda()
+    depth_hypothesis = torch.zeros(size=(batch_size, 1, half_height,
+                                         half_width)).cuda()
     for projection_index in range(0, batch_size):
-        valid_points_zs = z_values[projection_index][is_valid[projection_index]]
-        valid_projections = projections[projection_index][is_valid[projection_index]]
+        valid_points_zs = z_values[projection_index][
+            is_valid[projection_index]]
+        valid_projections = projections[projection_index][
+            is_valid[projection_index]]
         i_s = valid_projections[:, 1]
         j_s = valid_projections[:, 0]
         ij_combined = i_s * half_width + j_s
-        _, ij_combined_unique_indices = np.unique(ij_combined.cpu().numpy(), return_index=True)
-        ij_combined_unique_indices = torch.from_numpy(ij_combined_unique_indices).long().cuda()
+        _, ij_combined_unique_indices = np.unique(ij_combined.cpu().numpy(),
+                                                  return_index=True)
+        ij_combined_unique_indices = torch.from_numpy(
+            ij_combined_unique_indices).long().cuda()
         i_s = i_s[ij_combined_unique_indices]
         j_s = j_s[ij_combined_unique_indices]
         valid_points_zs = valid_points_zs[ij_combined_unique_indices]
-        torch.index_put_(depth_hypothesis[projection_index, 0], (i_s, j_s), valid_points_zs)
+        torch.index_put_(depth_hypothesis[projection_index, 0], (i_s, j_s),
+                         valid_points_zs)
     return depth_hypothesis
 
 
 def get_differentiable_square_depth_estimation(reference_pose_torch,
                                                measurement_pose_torch,
                                                previous_depth_torch,
-                                               full_K_torch,
-                                               half_K_torch,
-                                               original_image_size,
-                                               device):
+                                               full_K_torch, half_K_torch,
+                                               original_image_size, device):
     batch_size, _, _ = full_K_torch.size()
     R_render = torch.eye(3, dtype=torch.float, device=device)
     T_render = torch.zeros(3, dtype=torch.float, device=device)
@@ -171,11 +193,16 @@ def get_differentiable_square_depth_estimation(reference_pose_torch,
     R_render[:, 0, 0] *= -1
     R_render[:, 1, 1] *= -1
 
-    trans = torch.bmm(torch.inverse(reference_pose_torch), measurement_pose_torch)
-    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch, full_K_torch, normalize_points=False)
+    trans = torch.bmm(torch.inverse(reference_pose_torch),
+                      measurement_pose_torch)
+    points_3d_src = kornia.geometry.depth.depth_to_3d(previous_depth_torch,
+                                                      full_K_torch,
+                                                      normalize_points=False)
     points_3d_src = points_3d_src.permute(0, 2, 3, 1)
-    points_3d_dst = kornia.geometry.linalg.transform_points(trans[:, None], points_3d_src).view(batch_size, -1, 3)
-    point_cloud_p3d = structures.Pointclouds(points=points_3d_dst, features=None)
+    points_3d_dst = kornia.geometry.linalg.transform_points(
+        trans[:, None], points_3d_src).view(batch_size, -1, 3)
+    point_cloud_p3d = structures.Pointclouds(points=points_3d_dst,
+                                             features=None)
 
     width_normalizer = original_image_size / 4.0
     height_normalizer = original_image_size / 4.0
@@ -193,42 +220,51 @@ def get_differentiable_square_depth_estimation(reference_pose_torch,
                                              T=T_render,
                                              device=torch.device('cuda'))
 
-    raster_settings = renderer.PointsRasterizationSettings(
-        image_size=int(original_image_size / 2.0),
-        radius=0.02,
-        points_per_pixel=3)
+    raster_settings = renderer.PointsRasterizationSettings(image_size=int(
+        original_image_size / 2.0),
+                                                           radius=0.02,
+                                                           points_per_pixel=3)
 
-    depth_renderer = renderer.PointsRasterizer(cameras=cameras, raster_settings=raster_settings)
+    depth_renderer = renderer.PointsRasterizer(cameras=cameras,
+                                               raster_settings=raster_settings)
     rendered_depth = torch.min(depth_renderer(point_cloud_p3d).zbuf, dim=-1)[0]
     depth_hypothesis = torch.relu(rendered_depth).unsqueeze(1)
     return depth_hypothesis
 
 
-def warp_frame_depth(
-        image_src: torch.Tensor,
-        depth_dst: torch.Tensor,
-        src_trans_dst: torch.Tensor,
-        camera_matrix: torch.Tensor,
-        normalize_points: bool = False,
-        sampling_mode='bilinear') -> torch.Tensor:
+def warp_frame_depth(image_src: torch.Tensor,
+                     depth_dst: torch.Tensor,
+                     src_trans_dst: torch.Tensor,
+                     camera_matrix: torch.Tensor,
+                     normalize_points: bool = False,
+                     sampling_mode='bilinear') -> torch.Tensor:
     # TAKEN FROM KORNIA LIBRARY
     if not isinstance(image_src, torch.Tensor):
-        raise TypeError(f"Input image_src type is not a torch.Tensor. Got {type(image_src)}.")
+        raise TypeError(
+            f"Input image_src type is not a torch.Tensor. Got {type(image_src)}."
+        )
 
     if not len(image_src.shape) == 4:
-        raise ValueError(f"Input image_src musth have a shape (B, D, H, W). Got: {image_src.shape}")
+        raise ValueError(
+            f"Input image_src musth have a shape (B, D, H, W). Got: {image_src.shape}"
+        )
 
     if not isinstance(depth_dst, torch.Tensor):
-        raise TypeError(f"Input depht_dst type is not a torch.Tensor. Got {type(depth_dst)}.")
+        raise TypeError(
+            f"Input depht_dst type is not a torch.Tensor. Got {type(depth_dst)}."
+        )
 
     if not len(depth_dst.shape) == 4 and depth_dst.shape[-3] == 1:
-        raise ValueError(f"Input depth_dst musth have a shape (B, 1, H, W). Got: {depth_dst.shape}")
+        raise ValueError(
+            f"Input depth_dst musth have a shape (B, 1, H, W). Got: {depth_dst.shape}"
+        )
 
     if not isinstance(src_trans_dst, torch.Tensor):
         raise TypeError(f"Input src_trans_dst type is not a torch.Tensor. "
                         f"Got {type(src_trans_dst)}.")
 
-    if not len(src_trans_dst.shape) == 3 and src_trans_dst.shape[-2:] == (3, 3):
+    if not len(src_trans_dst.shape) == 3 and src_trans_dst.shape[-2:] == (3,
+                                                                          3):
         raise ValueError(f"Input src_trans_dst must have a shape (B, 3, 3). "
                          f"Got: {src_trans_dst.shape}.")
 
@@ -236,28 +272,36 @@ def warp_frame_depth(
         raise TypeError(f"Input camera_matrix type is not a torch.Tensor. "
                         f"Got {type(camera_matrix)}.")
 
-    if not len(camera_matrix.shape) == 3 and camera_matrix.shape[-2:] == (3, 3):
+    if not len(camera_matrix.shape) == 3 and camera_matrix.shape[-2:] == (3,
+                                                                          3):
         raise ValueError(f"Input camera_matrix must have a shape (B, 3, 3). "
                          f"Got: {camera_matrix.shape}.")
     # unproject source points to camera frame
-    points_3d_dst: torch.Tensor = kornia.geometry.depth.depth_to_3d(depth_dst, camera_matrix, normalize_points)  # Bx3xHxW
+    points_3d_dst: torch.Tensor = kornia.geometry.depth.depth_to_3d(
+        depth_dst, camera_matrix, normalize_points)  # Bx3xHxW
 
     # transform points from source to destination
     points_3d_dst = points_3d_dst.permute(0, 2, 3, 1)  # BxHxWx3
 
     # apply transformation to the 3d points
-    points_3d_src = kornia.geometry.linalg.transform_points(src_trans_dst[:, None], points_3d_dst)  # BxHxWx3
+    points_3d_src = kornia.geometry.linalg.transform_points(
+        src_trans_dst[:, None], points_3d_dst)  # BxHxWx3
     points_3d_src[:, :, :, 2] = torch.relu(points_3d_src[:, :, :, 2])
 
     # project back to pixels
     camera_matrix_tmp: torch.Tensor = camera_matrix[:, None, None]  # Bx1x1xHxW
-    points_2d_src: torch.Tensor = kornia.geometry.camera.perspective.project_points(points_3d_src, camera_matrix_tmp)  # BxHxWx2
+    points_2d_src: torch.Tensor = kornia.geometry.camera.perspective.project_points(
+        points_3d_src, camera_matrix_tmp)  # BxHxWx2
 
     # normalize points between [-1 / 1]
     height, width = depth_dst.shape[-2:]
-    points_2d_src_norm: torch.Tensor = kornia.geometry.conversions.normalize_pixel_coordinates(points_2d_src, height, width)  # BxHxWx2
+    points_2d_src_norm: torch.Tensor = kornia.geometry.conversions.normalize_pixel_coordinates(
+        points_2d_src, height, width)  # BxHxWx2
 
-    return torch.nn.functional.grid_sample(image_src, points_2d_src_norm, align_corners=True, mode=sampling_mode)
+    return torch.nn.functional.grid_sample(image_src,
+                                           points_2d_src_norm,
+                                           align_corners=True,
+                                           mode=sampling_mode)
 
 
 def is_pose_available(pose):
@@ -272,7 +316,9 @@ def is_pose_available(pose):
 
 # TRAINING UTILS
 def freeze_batchnorm(module):
-    if isinstance(module, torch.nn.BatchNorm1d) or isinstance(module, torch.nn.BatchNorm2d) or isinstance(module, torch.nn.BatchNorm3d):
+    if isinstance(module, torch.nn.BatchNorm1d) or isinstance(
+            module, torch.nn.BatchNorm2d) or isinstance(
+                module, torch.nn.BatchNorm3d):
         module.eval()
         module.weight.requires_grad = False
         module.bias.requires_grad = False
@@ -293,29 +339,33 @@ def zip_code(run_directory):
     zip_handle.close()
 
 
-def save_checkpoint(save_path, models, step, loss, filename='checkpoint.pth.tar'):
+def save_checkpoint(save_path,
+                    models,
+                    step,
+                    loss,
+                    filename='checkpoint.pth.tar'):
     save_path = Path(save_path)
     for model in models:
         prefix = model['name']
         model_state = model['state_dict']
-        torch.save(model_state, save_path / '{}_{}_epoch:{}_l1:{:.4f}_l1-inv:{:.4f}_l1-rel:{:.4f}_huber:{:.4f}'.format(prefix,
-                                                                                                                       filename,
-                                                                                                                       step,
-                                                                                                                       loss[0],
-                                                                                                                       loss[1],
-                                                                                                                       loss[2],
-                                                                                                                       loss[3]))
+        torch.save(
+            model_state, save_path /
+            '{}_{}_epoch:{}_l1:{:.4f}_l1-inv:{:.4f}_l1-rel:{:.4f}_huber:{:.4f}'
+            .format(prefix, filename, step, loss[0], loss[1], loss[2],
+                    loss[3]))
 
 
-def save_optimizer(save_path, optimizer, step, loss, filename='checkpoint.pth.tar'):
+def save_optimizer(save_path,
+                   optimizer,
+                   step,
+                   loss,
+                   filename='checkpoint.pth.tar'):
     save_path = Path(save_path)
     optimizer_state = optimizer.state_dict()
-    torch.save(optimizer_state, save_path / 'optimizer_{}_epoch:{}_l1:{:.4f}_l1-inv:{:.4f}_l1-rel:{:.4f}_huber:{:.4f}'.format(filename,
-                                                                                                                              step,
-                                                                                                                              loss[0],
-                                                                                                                              loss[1],
-                                                                                                                              loss[2],
-                                                                                                                              loss[3]))
+    torch.save(
+        optimizer_state, save_path /
+        'optimizer_{}_epoch:{}_l1:{:.4f}_l1-inv:{:.4f}_l1-rel:{:.4f}_huber:{:.4f}'
+        .format(filename, step, loss[0], loss[1], loss[2], loss[3]))
 
 
 def print_number_of_trainable_parameters(optimizer):
@@ -329,46 +379,97 @@ def print_number_of_trainable_parameters(optimizer):
 
 
 # TESTING UTILS
-def save_results(predictions, groundtruths, system_name, scene_name, save_folder, max_depth=np.inf):
+def save_results(predictions,
+                 groundtruths,
+                 system_name,
+                 scene_name,
+                 save_folder,
+                 max_depth=np.inf):
     if groundtruths is not None:
         errors = []
         for i, prediction in enumerate(predictions):
-            errors.append(compute_errors(groundtruths[i], prediction, max_depth))
+            errors.append(
+                compute_errors(groundtruths[i], prediction, max_depth))
 
-        error_names = ['abs_error', 'abs_relative_error', 'abs_inverse_error',
-                       'squared_relative_error', 'rmse', 'ratio_125', 'ratio_125_2', 'ratio_125_3']
+        error_names = [
+            'abs_error', 'abs_relative_error', 'abs_inverse_error',
+            'squared_relative_error', 'rmse', 'ratio_125', 'ratio_125_2',
+            'ratio_125_3'
+        ]
 
         errors = np.array(errors)
         mean_errors = np.nanmean(errors, 0)
         print("Metrics of {} for scene {}:".format(system_name, scene_name))
-        print("{:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}".format(*error_names))
-        print("{:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}".format(*mean_errors))
+        print("{:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}, {:>25}".
+              format(*error_names))
+        print(
+            "{:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}, {:25.4f}"
+            .format(*mean_errors))
 
-        np.savez_compressed(Path(save_folder) / system_name + "_errors_" + scene_name, errors)
+        np.savez_compressed(
+            Path(save_folder) / system_name + "_errors_" + scene_name, errors)
 
     predictions = np.array(predictions)
-    np.savez_compressed(Path(save_folder) / system_name + "_predictions_" + scene_name, predictions)
+    np.savez_compressed(
+        Path(save_folder) / system_name + "_predictions_" + scene_name,
+        predictions)
 
 
 def save_predictions(predictions, system_name, scene_name, save_folder):
-    np.savez_compressed(Path(save_folder) / system_name + "_predictions_" + scene_name, predictions)
+    np.savez_compressed(
+        Path(save_folder) / system_name + "_predictions_" + scene_name,
+        predictions)
 
 
-def visualize_predictions(numpy_reference_image, numpy_measurement_image, numpy_predicted_depth, normalization_mean, normalization_std, normalization_scale,
+def visualize_predictions(numpy_reference_image,
+                          numpy_measurement_image,
+                          numpy_predicted_depth,
+                          normalization_mean,
+                          normalization_std,
+                          normalization_scale,
                           depth_multiplier_for_visualization=5000):
-    numpy_reference_image = numpy_reference_image * np.array(normalization_std) + np.array(normalization_mean)
-    numpy_reference_image = (numpy_reference_image * normalization_scale).astype(np.uint8)
+    numpy_reference_image = numpy_reference_image * np.array(
+        normalization_std) + np.array(normalization_mean)
+    numpy_reference_image = (numpy_reference_image *
+                             normalization_scale).astype(np.uint8)
 
-    numpy_measurement_image = numpy_measurement_image * np.array(normalization_std) + np.array(normalization_mean)
-    numpy_measurement_image = (numpy_measurement_image * normalization_scale).astype(np.uint8)
+    numpy_measurement_image = numpy_measurement_image * np.array(
+        normalization_std) + np.array(normalization_mean)
+    numpy_measurement_image = (numpy_measurement_image *
+                               normalization_scale).astype(np.uint8)
 
-    cv2.imshow("Reference Image", cv2.cvtColor(numpy_reference_image, cv2.COLOR_RGB2BGR))
-    cv2.imshow("A Measurement Image", cv2.cvtColor(numpy_measurement_image, cv2.COLOR_RGB2BGR))
-    cv2.imshow("Predicted Depth", (depth_multiplier_for_visualization * numpy_predicted_depth).astype(np.uint16))
+    # concatenate three images for better visualizations.
+
+    reference_image = cv2.cvtColor(numpy_reference_image, cv2.COLOR_RGB2BGR)
+
+    measurement_image = cv2.cvtColor(numpy_measurement_image,
+                                     cv2.COLOR_RGB2BGR)
+
+    depth_map = cv2.cvtColor((depth_multiplier_for_visualization *
+                              numpy_predicted_depth).astype(np.uint16),
+                             cv2.COLOR_GRAY2RGB)
+
+    win1 = "reference_frame"
+    win2 = "measurement_frame"
+    win3 = "depthmap"
+
+    cv2.namedWindow(win1)
+    cv2.namedWindow(win2)
+    cv2.namedWindow(win3)
+
+    cv2.moveWindow(win1, 400, 200)
+    cv2.moveWindow(win2, 900, 200)
+    cv2.moveWindow(win3, 400, 500)
+
+    cv2.imshow(win1, cv2.cvtColor(numpy_reference_image, cv2.COLOR_RGB2BGR))
+    cv2.imshow(win2, cv2.cvtColor(numpy_measurement_image, cv2.COLOR_RGB2BGR))
+    cv2.imshow(win3, (depth_multiplier_for_visualization *
+                      numpy_predicted_depth).astype(np.uint16))
     cv2.waitKey()
 
 
 class InferenceTimer:
+
     def __init__(self, n_skip=20):
         self.times = []
         self.n_skip = n_skip
@@ -383,7 +484,8 @@ class InferenceTimer:
         self.forward_pass_end.record()
         torch.cuda.synchronize()
 
-        elapsed_time = self.forward_pass_start.elapsed_time(self.forward_pass_end)
+        elapsed_time = self.forward_pass_start.elapsed_time(
+            self.forward_pass_end)
         self.times.append(elapsed_time)
 
     def print_statistics(self):
